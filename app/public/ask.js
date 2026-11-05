@@ -3,20 +3,22 @@ const form = document.getElementById("ask-form");
 const input = document.getElementById("question");
 const button = document.getElementById("ask-button");
 const statusBox = document.getElementById("sdk-status");
+const thread = document.getElementById("thread");
+const asked = document.getElementById("asked");
 const progress = document.getElementById("progress");
 const answerBox = document.getElementById("answer");
 const sourcesBox = document.getElementById("sources");
+const typingHtml = '<div class="typing"><span></span><span></span><span></span></div>';
 
 function setDisabled(reason) {
   button.disabled = true;
-  input.disabled = true;
-  statusBox.className = "notice warn";
+  statusBox.className = "status-pill warn";
   statusBox.innerHTML = "";
-  const text = document.createElement("div");
-  text.textContent = "질문하기를 지금은 쓸 수 없어요. (다른 화면은 정상입니다) — " + reason;
+  const text = document.createElement("span");
+  text.textContent = "질문하기를 지금은 쓸 수 없어요 (다른 화면은 정상입니다) · " + reason;
   const retry = document.createElement("button");
   retry.type = "button";
-  retry.className = "ghost";
+  retry.className = "btn btn-secondary btn-sm";
   retry.textContent = "다시 확인";
   retry.onclick = () => checkStatus(true);
   statusBox.append(text, retry);
@@ -24,13 +26,12 @@ function setDisabled(reason) {
 
 function setEnabled() {
   button.disabled = false;
-  input.disabled = false;
-  statusBox.className = "notice ok";
-  statusBox.textContent = "가재코드 연결됨. 질문을 입력하세요.";
+  statusBox.className = "status-pill ok";
+  statusBox.textContent = "가재코드 연결됨";
 }
 
 async function checkStatus(force) {
-  statusBox.className = "notice";
+  statusBox.className = "status-pill";
   statusBox.textContent = "가재코드 연결을 확인하고 있어요...";
   try {
     const res = await fetch("/api/status" + (force ? "?force=1" : ""));
@@ -41,20 +42,52 @@ async function checkStatus(force) {
   }
 }
 
-document.getElementById("example-button").onclick = () => {
-  input.value = "하네스와 모델은 어떻게 다른가요?";
-  input.focus();
-};
+for (const chip of document.querySelectorAll(".chip")) {
+  chip.addEventListener("click", () => {
+    input.value = chip.dataset.q;
+    input.focus();
+  });
+}
+
+input.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) form.requestSubmit();
+});
+
+function renderSources(sources) {
+  if (!sources.length) return;
+  sourcesBox.hidden = false;
+  sourcesBox.innerHTML = "<h4>근거 페이지</h4>";
+  const list = document.createElement("div");
+  list.className = "source-chips";
+  for (const s of sources) {
+    const a = document.createElement("a");
+    a.className = "source-chip";
+    a.href = s.href;
+    a.innerHTML = '<svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M4 19V5"/></svg>';
+    const span = document.createElement("span");
+    const strong = document.createElement("strong");
+    strong.textContent = s.title.replace(/\s*\(.*\)$/, "");
+    const small = document.createElement("small");
+    small.textContent = s.path;
+    span.append(strong, small);
+    a.append(span);
+    list.append(a);
+  }
+  sourcesBox.append(list);
+}
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const question = input.value.trim();
   if (!question || button.disabled) return;
   button.disabled = true;
-  answerBox.hidden = false;
-  answerBox.textContent = "";
+  thread.hidden = false;
+  asked.textContent = question;
+  answerBox.innerHTML = typingHtml;
+  answerBox.classList.remove("streaming");
   sourcesBox.hidden = true;
-  progress.textContent = "질문을 보냈어요...";
+  progress.textContent = "질문을 보냈어요";
+  thread.scrollIntoView({ behavior: "smooth", block: "start" });
   let raw = "";
   try {
     const res = await fetch("/api/ask", {
@@ -75,24 +108,22 @@ form.addEventListener("submit", async (event) => {
         buffer = buffer.slice(nl + 1);
         if (!line.trim()) continue;
         const msg = JSON.parse(line);
-        if (msg.type === "status") progress.textContent = "🦞 " + msg.text;
-        if (msg.type === "delta") { raw += msg.text; answerBox.textContent = raw; }
-        if (msg.type === "error") { answerBox.hidden = true; progress.textContent = ""; setDisabled(msg.text); return; }
+        if (msg.type === "status") progress.textContent = msg.text;
+        if (msg.type === "delta") {
+          raw += msg.text;
+          answerBox.classList.add("streaming");
+          answerBox.textContent = raw;
+        }
+        if (msg.type === "error") {
+          thread.hidden = true;
+          setDisabled(msg.text);
+          return;
+        }
         if (msg.type === "done") {
           progress.textContent = "답변 완료";
+          answerBox.classList.remove("streaming");
           answerBox.innerHTML = msg.html;
-          if (msg.sources.length) {
-            sourcesBox.hidden = false;
-            sourcesBox.innerHTML = "<h2>근거 페이지</h2>";
-            const ul = document.createElement("ul");
-            for (const s of msg.sources) {
-              const li = document.createElement("li");
-              const a = document.createElement("a");
-              a.href = s.href; a.textContent = s.title + " (" + s.path + ")";
-              li.append(a); ul.append(li);
-            }
-            sourcesBox.append(ul);
-          }
+          renderSources(msg.sources);
         }
       }
     }

@@ -1,7 +1,7 @@
 // Reads wiki/ and raw/ files on every request (no build step, refresh shows changes).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve, sep } from "node:path";
-import { Marked } from "marked";
+import { Marked, Renderer } from "marked";
 import { rawDir, rootDir, wikiDir } from "./paths.ts";
 
 export type IndexEntry = { title: string; href: string; summary: string };
@@ -30,14 +30,31 @@ function rewriteHref(href: string, fromFile: string): { href: string; external: 
 	return { href: (route ?? href) + (hash ? `#${hash}` : ""), external: false };
 }
 
+export type TocItem = { id: string; text: string; depth: number };
+
 export function renderMarkdown(markdown: string, fromFile: string): string {
+	return renderMarkdownWithToc(markdown, fromFile).html;
+}
+
+export function renderMarkdownWithToc(markdown: string, fromFile: string): { html: string; toc: TocItem[] } {
+	const toc: TocItem[] = [];
 	const marked = new Marked({ gfm: true });
 	marked.use({
 		renderer: {
+			heading({ tokens, depth }) {
+				const text = this.parser.parseInline(tokens);
+				if (depth === 1) return `<h1>${text}</h1>\n`;
+				const id = `section-${toc.length + 1}`;
+				toc.push({ id, text: text.replace(/<[^>]+>/g, ""), depth });
+				return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+			},
+			table(token) {
+				return `<div class="table-wrap">${Renderer.prototype.table.call(this, token)}</div>`;
+			},
 			link({ href, tokens }) {
 				const text = this.parser.parseInline(tokens);
 				const target = rewriteHref(href, fromFile);
-				const isSource = target.href.startsWith("/raw/") || target.external;
+				const isSource = target.href.startsWith("/raw/");
 				const attrs = target.external ? ' target="_blank" rel="noopener"' : "";
 				const cls = isSource ? ' class="source-link"' : "";
 				return `<a href="${escapeHtml(target.href)}"${attrs}${cls}>${text}</a>`;
@@ -47,7 +64,13 @@ export function renderMarkdown(markdown: string, fromFile: string): string {
 			},
 		},
 	});
-	return marked.parse(markdown, { async: false }) as string;
+	// "문장. ([출처](...))" → show the source as a chip without the surrounding parentheses.
+	let cleaned = markdown.replace(/\((\[출처\]\([^)\s]+\))\)/g, "$1");
+	// CommonMark does not close **bold** when ")" is followed directly by a Korean particle
+	// (e.g. **하네스(harness)**를). Mark those spans and turn them into <strong> afterwards.
+	cleaned = cleaned.replace(/\*\*([^*\n]*?[)\]"'])\*\*(?=[\uAC00-\uD7A3])/g, "\u0001$1\u0002");
+	const html = (marked.parse(cleaned, { async: false }) as string).replace(/\u0001/g, "<strong>").replace(/\u0002/g, "</strong>");
+	return { html, toc };
 }
 
 export function splitFrontMatter(text: string): { meta: Record<string, string>; body: string } {

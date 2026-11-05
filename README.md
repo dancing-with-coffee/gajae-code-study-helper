@@ -142,6 +142,8 @@ DEMO.md           강사용 시연 대본
 
 `raw/`와 `demo/`의 문서는 학습용으로 수집한 공개 문서이며, 저작권은 각 원저자(Anthropic, Andrej Karpathy)에게 있습니다. 각 파일 맨 위에 원문 주소와 게시일이 적혀 있습니다.
 
+화면 글꼴은 [Pretendard](https://github.com/orioncactus/pretendard)(SIL Open Font License 1.1)를 `app/public/fonts/`에 넣어 인터넷 없이도 보이게 했습니다.
+
 ## 문제가 생기면
 
 - `command not found: gjc` 또는 `bun` → 터미널을 닫았다가 다시 열어 보세요.
