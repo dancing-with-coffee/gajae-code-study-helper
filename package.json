@@ -8,7 +8,7 @@
     "lint": "bun app/lint.ts",
     "demo:before": "git checkout demo-before -- AGENTS.md && echo 'AGENTS.md → demo-before (직장인 눈높이)'",
     "demo:after": "git checkout demo-after -- AGENTS.md && echo 'AGENTS.md → demo-after (초등학생 눈높이 + 비유)'",
-    "demo:reset": "git checkout demo-before -- AGENTS.md raw wiki demo && git clean -fdq raw wiki demo && echo '시연 전 상태로 되돌렸습니다'"
+    "demo:reset": "git checkout demo-before -- AGENTS.md && git checkout HEAD -- raw wiki demo && git clean -fdq raw wiki demo && echo '시연 전 상태로 되돌렸습니다'"
   },
   "dependencies": {
     "@gajae-code/coding-agent": "0.15.3",
