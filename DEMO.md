@@ -6,6 +6,15 @@
 ## 준비 (수업 30분 전, 5분)
 
 1. 프로젝트는 ZIP이 아니라 `git clone`으로 받아 둡니다(시연용 태그 `demo-before`/`demo-after`는 git에만 있습니다). README의 1~2단계를 끝내 둡니다(`gjc --version` → 0.15.3, `bun --version` → 1.4 이상, `gjc`에서 `/login` 완료).
+   `git tag`를 쳐서 `demo-before`, `demo-after`가 안 보이면 한 번만 만들어 둡니다(원격에도 올리려면 마지막 줄까지).
+
+   ```sh
+   git fetch origin main
+   git tag demo-before 924728e
+   git tag demo-after 81458c7
+   git push origin demo-before demo-after
+   ```
+
 2. 프로젝트 폴더에서 시연 전 상태로 되돌립니다. (리허설 때 생긴 파일은 지워집니다.)
 
    ```sh
