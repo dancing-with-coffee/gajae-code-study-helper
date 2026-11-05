@@ -1,0 +1,5 @@
+node_modules/
+.DS_Store
+# 가재코드 실행 중에 생기는 임시 세션 파일
+.gjc/_session-*/
+.gjc/state/
